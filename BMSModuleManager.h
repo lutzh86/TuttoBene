@@ -3,6 +3,8 @@
 #include "BMSModule.h"
 #include "driver/gpio.h"
 #include "driver/twai.h"
+#include "Arduino.h"
+
 
 #define MAX_MODULE_ADDR     0x3E
 

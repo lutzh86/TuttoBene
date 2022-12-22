@@ -16,7 +16,7 @@
 #include <ArduinoOTA.h>
 
 
-const char* ssid = "wifi";
+const char* ssid = "HXT";
 const char* password =  "password";
 
 String lastcans[100];
@@ -76,7 +76,7 @@ void loadSettings()
   settings.batteryID = 0x01; //in the future should be 0xFF to force it to ask for an address
   settings.OverVSetpoint = 4.2f;
   settings.UnderVSetpoint = 3.4f;
-  settings.ChargeVsetpoint = 4.1f;
+  settings.ChargeVsetpoint = 4.0f;
   settings.DischVsetpoint = 3.4f;
   settings.CellGap = 0.2f; //max delta between high and low cell
   settings.OverTSetpoint = 50.0f;
@@ -89,7 +89,6 @@ void loadSettings()
   settings.Pstrings = 2; // strings in parallel used to divide voltage of pack
   settings.Scells = 16;//Cells in series
  
-
   settings.socvolt[0] = 3500; //Voltage and SOC curve for voltage based SOC calc
   settings.socvolt[1] = 10; //Voltage and SOC curve for voltage based SOC calc
   settings.socvolt[2] = 4000; //Voltage and SOC curve for voltage based SOC calc
@@ -117,6 +116,7 @@ void printFrame(twai_message_t message)
 
 void setup()
 {
+  delay(2000);
   WiFi.begin(ssid, password);
   server.on("/", handle_OnConnect);
   server.begin();
@@ -241,8 +241,7 @@ void loop()
       bms.balanceCells(1,1);}
 
  
-      //undervoltage fault (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() < settings.UnderVSetpoint)
-     
+      
           
       
       printbmsstat();
@@ -250,13 +249,12 @@ void loop()
     
     
 
+    updateSOC();
+    alarmupdate();  
+    VEcan();
+    sendcommand();
 
-   
-    //VEcan();
-
-    //sendcommand();
-
-    //cellspresent = bms.seriescells();
+    
     //bms.setSensors(settings.IgnoreTemp, settings.IgnoreVolt, settings.DeltaVolt);
    
 
@@ -316,8 +314,10 @@ void alarmupdate()
 
 void printbmsstat()
 {
+  Serial.print("Battery SOC:");
+  Serial.println(SOC);
 
-  Serial.print("BMS Status : ");
+  Serial.print("BMS Errors : ");
 
 
     if (bms.getLowCellVolt() < settings.UnderVSetpoint)
@@ -358,14 +358,14 @@ void updateSOC()
 
     SOC = map(uint16_t(bms.getLowCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
 
- // ampsecond = ampsecond + ((currentact * (millis() - lasttime) / 1000) / 1000);
-       
-   
+/*  ampsecond = ampsecond + ((currentact * (millis() - lasttime) / 1000) / 1000);
+ 
+ 
     ampsecond = (SOC * settings.CAP * settings.Pstrings * 10) / 0.27777777777778 ;
     SOC = ((ampsecond * 0.27777777777778) / (settings.CAP * settings.Pstrings * 1000)) * 100;
  
     ampsecond = (settings.CAP * settings.Pstrings * 1000) / 0.27777777777778 ; //reset to full, dependant on given capacity. Need to improve with auto correction for capcity.
-   
+  */ 
    
 
 }
