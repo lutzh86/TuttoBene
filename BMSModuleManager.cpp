@@ -102,6 +102,7 @@ void BMSModuleManager::balanceCells(int debug, int onoff) {
  
   for (int y = 1; y < 63; y++) {
     if (modules[y].isExisting() == 1) {
+      
       balance = 0;
       for (int i = 0; i < 14; i++) {
         // if ((LowCellVolt + BalHys) < modules[y].getCellVoltage(i))
@@ -114,16 +115,15 @@ void BMSModuleManager::balanceCells(int debug, int onoff) {
       }
 
       if (onoff == 0) {
-        balance = 0;
         balcnt = 1;
+        balance = 0;
       }
 
       if (balance != 0)
         balcnt = 0;
-      
-      // balance != modules[y].getBalance()
+           
 
-      if (1) {
+      if (1) { // balance != modules[y].getBalance()
 
         modules[y].setBalance(balance);
 
@@ -387,8 +387,7 @@ void BMSModuleManager::decodecan(twai_message_t &msg, int debug) {
   if (CMU > 0 && CMU < 64) {
     if (Id < 3) {
       if (msg.data[2] != 0xFF && msg.data[5] != 0xFF &&
-          msg.data[7] !=
-              0xFF) // Check module is not initializing OR a "spoof module"
+          msg.data[7] != 0xFF) // Check module is not initializing OR a "spoof module"
       {
         if (debug == 1) {
           Serial.println();
@@ -637,6 +636,8 @@ void BMSModuleManager::printPackSummary() {
 String BMSModuleManager::htmlPackDetails(int digits) {
 
   String ptr = "<!DOCTYPE html> <html>\n";
+
+  ptr += "<head><meta http-equiv=\"refresh\" content=\"2; URL=/\"></head>";
 
   int cellNum = 0;
 

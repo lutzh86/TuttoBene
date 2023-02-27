@@ -180,19 +180,21 @@ void setup() {
   bms.setPstrings(settings.parallel_strings);
   bms.setSensors(settings.IgnoreTemp, settings.IgnoreVolt, settings.DeltaVolt);
   bms.setBalanceHyst(settings.balanceHyst);
+  looptime = millis();
 }
 
 void loop() {
+
+   twai_read_alerts(&alerts_triggered, pdMS_TO_TICKS(10));
+  if (alerts_triggered & TWAI_ALERT_RX_DATA) {canread(); }
 
   server.handleClient();
   ArduinoOTA.handle();
 
   twai_read_alerts(&alerts_triggered, pdMS_TO_TICKS(10));
-  if (alerts_triggered & TWAI_ALERT_RX_DATA) {
-    canread();
-  }
+  if (alerts_triggered & TWAI_ALERT_RX_DATA) {canread(); }
 
-  if (millis() - looptime > 2000) {
+  if (millis() - looptime > 3000) {
     looptime = millis();
     twai_get_status_info(&twaistatus);
     bms.getAllVoltTemp();
