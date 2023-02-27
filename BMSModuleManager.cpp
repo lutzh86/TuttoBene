@@ -148,47 +148,23 @@ void BMSModuleManager::balanceCells(int debug, int onoff) {
           }
         }
 
-        switch (y) {
-        case (1):
-          outmsg.identifier = 0x1A55540A;
-          break;
-        case (2):
-          outmsg.identifier = 0x1A55540C;
-          break;
-        case (3):
-          outmsg.identifier = 0x1A55540E;
-          break;
-        case (4):
-          outmsg.identifier = 0x1A555410;
-          break;
-        case (5):
-          outmsg.identifier = 0x1A555412;
-          break;
-        case (6):
-          outmsg.identifier = 0x1A555414;
-          break;
-        case (7):
-          outmsg.identifier = 0x1A555416;
-          break;
-        case (8):
-          outmsg.identifier = 0x1A555418;
-          break;
-        case (9):
-          outmsg.identifier = 0x1A55541A;
-          break;
-        case (10):
-          outmsg.identifier = 0x1A5554AB;
-          break;
-        case (11):
-          outmsg.identifier = 0x1A5554AD;
-          break;
-        case (12):
-          outmsg.identifier = 0x1A5554AF;
-          break;
+       const uint32_t command_bleed_table[] = {
+                      0x1A55540A,  // y = 1
+                      0x1A55540C,  // y = 2
+                      0x1A55540E,  // y = 3
+                      0x1A555410,  // y = 4
+                      0x1A555412,  // y = 5
+                      0x1A555414,  // y = 6
+                      0x1A555416,  // y = 7
+                      0x1A555418,  // y = 8
+                      0x1A55541A,  // y = 9
+                      0x1A5554AB,  // y = 10
+                      0x1A5554AD,  // y = 11
+                      0x1A5554AF   // y = 12
+                      };
 
-        default:
-          break;
-        }
+        if (y >= 1 && y <= 12) outmsg.identifier = command_bleed_table[y-1];
+
 
         outmsg.data_length_code = 8;
         outmsg.extd = 1;
@@ -229,47 +205,18 @@ void BMSModuleManager::balanceCells(int debug, int onoff) {
         outmsg.data[6] = 0xFE;
         outmsg.data[7] = 0xFE;
 
-        switch (y) {
-        case (1):
-          outmsg.identifier = 0x1A55540B;
-          break;
-        case (2):
-          outmsg.identifier = 0x1A55540D;
-          break;
-        case (3):
-          outmsg.identifier = 0x1A55540F;
-          break;
-        case (4):
-          outmsg.identifier = 0x1A555411;
-          break;
-        case (5):
-          outmsg.identifier = 0x1A555413;
-          break;
-        case (6):
-          outmsg.identifier = 0x1A555415;
-          break;
-        case (7):
-          outmsg.identifier = 0x1A555417;
-          break;
-        case (8):
-          outmsg.identifier = 0x1A555419;
-          break;
-        case (9):
-          outmsg.identifier = 0x1A55541B;
-          break;
-        case (10):
-          outmsg.identifier = 0x1A5554AC;
-          break;
-        case (11):
-          outmsg.identifier = 0x1A5554AE;
-          break;
-        case (12):
-          outmsg.identifier = 0x1A5554B0;
-          break;
+         const uint32_t command_bleed_table_2[] = {
+                     0x1A55540B, 0x1A55540D, 0x1A55540F, 0x1A555411,
+                     0x1A555413, 0x1A555415, 0x1A555417, 0x1A555419,
+                     0x1A55541B, 0x1A5554AC, 0x1A5554AE, 0x1A5554B0
+                     };
 
-        default:
-          break;
+          if (y >= 1 && y <= 12) {
+          // Set the identifier based on the lookup table
+          outmsg.identifier = command_bleed_table_2[y - 1];
         }
+
+        
         outmsg.rtr = 0;
         outmsg.data_length_code = 8;
         outmsg.extd = 1;
@@ -376,257 +323,67 @@ void BMSModuleManager::decodetemp(twai_message_t &msg, int debug, int type) {
 void BMSModuleManager::decodecan(twai_message_t &msg, int debug) {
   int CMU, Id = 0;
 
-  switch (msg.identifier) {
-    ///////////////// one extender increment//////////
-
-  case (0x1D0):
-    CMU = 9;
-    Id = 0;
+   switch (msg.identifier) {
+   
+  case 0x1B0 ... 0x1B3:
+    CMU = 1;
     break;
-  case (0x1D1):
-    CMU = 9;
-    Id = 1;
+  case 0x1B4 ... 0x1B7:
+    CMU = 2;
     break;
-  case (0x1D2):
-    CMU = 9;
-    Id = 2;
+  case 0x1B8 ... 0x1BB:
+    CMU = 3;
     break;
-  case (0x1D3):
-    CMU = 9;
-    Id = 3;
+  case 0x1BC ... 0x1BF:
+    CMU = 4;
     break;
-
-  case (0x1D4):
+  case 0x1C0 ... 0x1C3:
+    CMU = 5;
+    break;
+  case 0x1C4 ... 0x1C7:
+    CMU = 6;
+    break;
+  case 0x1C8 ... 0x1CB:
+    CMU = 7;
+    break;
+  case 0x1CC ... 0x1CF:
+    CMU = 8;
+    break;
+  case 0x1D0 ... 0x1D3:
+    CMU = 9;
+    break;
+  case 0x1D4 ... 0x1D7:
     CMU = 10;
-    Id = 0;
     break;
-  case (0x1D5):
-    CMU = 10;
-    Id = 1;
-    break;
-  case (0x1D6):
-    CMU = 10;
-    Id = 2;
-    break;
-  case (0x1D8):
+  case 0x1D8 ... 0x1DB:
     CMU = 11;
-    Id = 0;
     break;
-  case (0x1D9):
-    CMU = 11;
-    Id = 1;
-    break;
-  case (0x1DA):
-    CMU = 11;
-    Id = 2;
-    break;
-  case (0x1DC):
+  case 0x1DC ... 0x1DF:
     CMU = 12;
-    Id = 0;
     break;
-  case (0x1DD):
-    CMU = 12;
-    Id = 1;
-    break;
-  case (0x1DE):
-    CMU = 12;
-    Id = 2;
-    break;
-
-  case (0x1E0):
+  case 0x1E0 ... 0x1E3:
     CMU = 13;
-    Id = 0;
     break;
-  case (0x1E1):
-    CMU = 13;
-    Id = 1;
-    break;
-  case (0x1E2):
-    CMU = 13;
-    Id = 2;
-    break;
-
-  case (0x1E4):
+  case 0x1E4 ... 0x1E7:
     CMU = 14;
-    Id = 0;
     break;
-  case (0x1E5):
-    CMU = 14;
-    Id = 1;
-    break;
-  case (0x1E6):
-    CMU = 14;
-    Id = 2;
-    break;
-
-  case (0x1E8):
+  case 0x1E8 ... 0x1EB:
     CMU = 15;
-    Id = 0;
     break;
-  case (0x1E9):
-    CMU = 15;
-    Id = 1;
-    break;
-  case (0x1EA):
-    CMU = 15;
-    Id = 2;
-    break;
-
-  case (0x1EC):
+  case 0x1EC ... 0x1EF:
     CMU = 16;
-    Id = 0;
-    break;
-  case (0x1ED):
-    CMU = 16;
-    Id = 1;
-    break;
-  case (0x1EE):
-    CMU = 16;
-    Id = 2;
-    break;
-
-    ///////////////////////standard ids////////////////
-
-  case (0x1B0):
-    CMU = 1;
-    Id = 0;
-    break;
-  case (0x1B1):
-    CMU = 1;
-    Id = 1;
-    break;
-  case (0x1B2):
-    CMU = 1;
-    Id = 2;
-    break;
-  case (0x1B3):
-    CMU = 1;
-    Id = 3;
-    break;
-
-  case (0x1B4):
-    CMU = 2;
-    Id = 0;
-    break;
-  case (0x1B5):
-    CMU = 2;
-    Id = 1;
-    break;
-  case (0x1B6):
-    CMU = 2;
-    Id = 2;
-    break;
-  case (0x1B7):
-    CMU = 2;
-    Id = 3;
-    break;
-
-  case (0x1B8):
-    CMU = 3;
-    Id = 0;
-    break;
-  case (0x1B9):
-    CMU = 3;
-    Id = 1;
-    break;
-  case (0x1BA):
-    CMU = 3;
-    Id = 2;
-    break;
-  case (0x1BB):
-    CMU = 3;
-    Id = 3;
-    break;
-
-  case (0x1BC):
-    CMU = 4;
-    Id = 0;
-    break;
-  case (0x1BD):
-    CMU = 4;
-    Id = 1;
-    break;
-  case (0x1BE):
-    CMU = 4;
-    Id = 2;
-    break;
-  case (0x1BF):
-    CMU = 4;
-    Id = 3;
-    break;
-
-  case (0x1C0):
-    CMU = 5;
-    Id = 0;
-    break;
-  case (0x1C1):
-    CMU = 5;
-    Id = 1;
-    break;
-  case (0x1C2):
-    CMU = 5;
-    Id = 2;
-    break;
-  case (0x1C3):
-    CMU = 5;
-    Id = 3;
-    break;
-
-  case (0x1C4):
-    CMU = 6;
-    Id = 0;
-    break;
-  case (0x1C5):
-    CMU = 6;
-    Id = 1;
-    break;
-  case (0x1C6):
-    CMU = 6;
-    Id = 2;
-    break;
-  case (0x1C7):
-    CMU = 6;
-    Id = 3;
-    break;
-
-  case (0x1C8):
-    CMU = 7;
-    Id = 0;
-    break;
-  case (0x1C9):
-    CMU = 7;
-    Id = 1;
-    break;
-  case (0x1CA):
-    CMU = 7;
-    Id = 2;
-    break;
-  case (0x1CB):
-    CMU = 7;
-    Id = 3;
-    break;
-
-  case (0x1CC):
-    CMU = 8;
-    Id = 0;
-    break;
-  case (0x1CD):
-    CMU = 8;
-    Id = 1;
-    break;
-  case (0x1CE):
-    CMU = 8;
-    Id = 2;
-    break;
-  case (0x1CF):
-    CMU = 8;
-    Id = 3;
     break;
 
   default:
     return;
     break;
   }
+
+
+  Id = msg.identifier & 0x3;
+  
+
+  
   if (CMU > 0 && CMU < 64) {
     if (Id < 3) {
       if (msg.data[2] != 0xFF && msg.data[5] != 0xFF &&
@@ -893,8 +650,8 @@ String BMSModuleManager::htmlPackDetails(int digits) {
 
   ptr += "<p>SOC useable:" + String(SOC) + "%";
   ptr += "<p>SOC physical:" + String(SOC_physical) + "%";
-  ptr += "<p>Full capacity:" + String(settings.series_cells * settings.parallel_strings * settings.capacity * settings.nominal_cell_voltage * 0.001 * 0.001) + "kWh";
-  ptr += "<p>Useable left capacity:" + String(SOC * settings.series_cells * settings.parallel_strings * settings.capacity * settings.nominal_cell_voltage * 0.001 * 0.001 * 0.01) + "kWh";
+  ptr +=         "<p>Full capacity:" + String(settings.series_cells * settings.parallel_strings * settings.capacity * settings.nominal_cell_voltage * 0.000001 ) + "kWh";
+  ptr += "<p>Useable left capacity:" + String(float(SOC * 0.01) * settings.series_cells * settings.parallel_strings * settings.capacity * settings.nominal_cell_voltage * 0.001 * 0.001) + "kWh";
 
 
   

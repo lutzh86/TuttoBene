@@ -45,105 +45,59 @@ void BMSModule::clearmodule() {
 }
 
 void BMSModule::decodetemp(twai_message_t &msg, int y) {
-  if (y == 1) // 0x00 in byte 2 means its an MEB message
+ if (y == 1) // 0x00 in byte 2 means its an MEB message
+{
+  type = 1;
+  if (msg.data[7] == 0xFD && msg.data[2] != 0xFD)
   {
-    type = 1;
-    if (msg.data[7] == 0xFD) {
-      if (msg.data[2] != 0xFD) {
-        temperatures[0] = (msg.data[2] * 0.5) - 40;
-      }
-    } else {
-      if (msg.data[0] < 0xDF) {
-        temperatures[0] = (msg.data[0] * 0.5) - 43;
-        balstat = msg.data[2] + (msg.data[3] << 8);
-      } else {
-        temperatures[0] = (msg.data[3] * 0.5) - 43;
-      }
-      if (msg.data[4] < 0xF0) {
-        temperatures[1] = (msg.data[4] * 0.5) - 43;
-      } else {
-        temperatures[1] = 0;
-      }
-      if (msg.data[5] < 0xF0) {
-        temperatures[2] = (msg.data[5] * 0.5) - 43;
-      } else {
-        temperatures[2] = 0;
-      }
-    }
-  } else if (y == 2) {
-    type = 2;
-    temperatures[0] =  ((uint16_t(((msg.data[5] & 0x0F) << 4) | ((msg.data[4] & 0xF0) >> 4))) *    0.5) -  40; // MEB Bits 36-44
-    
+    temperatures[0] = (msg.data[2] * 0.5) - 40;
   }
-   else 
+  else if (msg.data[0] < 0xDF)
   {
-    type = 3;
-    temperatures[1] =  ((uint16_t(((msg.data[5] & 0x0F) << 4) | ((msg.data[4] & 0xF0) >> 4))) *    0.5) -  40; // MEB Bits 36-44
-    
+    temperatures[0] = (msg.data[0] * 0.5) - 43;
+    balstat = msg.data[2] + (msg.data[3] << 8);
+    temperatures[1] = (msg.data[4] < 0xF0) ? ((msg.data[4] * 0.5) - 43) : 0;
+    temperatures[2] = (msg.data[5] < 0xF0) ? ((msg.data[5] * 0.5) - 43) : 0;
+  }
+  else
+  {
+    temperatures[0] = (msg.data[3] * 0.5) - 43;
+    temperatures[1] = (msg.data[4] < 0xF0) ? ((msg.data[4] * 0.5) - 43) : 0;
+    temperatures[2] = (msg.data[5] < 0xF0) ? ((msg.data[5] * 0.5) - 43) : 0;
   }
 }
+else
+{
+  uint16_t temp_val = ((msg.data[5] & 0x0F) << 4) | ((msg.data[4] & 0xF0) >> 4);
+  switch (y)
+  {
+    case 2:
+      type = 2;
+      temperatures[0] = (temp_val * 0.5) - 40; // MEB Bits 36-44
+      break;
+    case 3:
+      type = 3;
+      temperatures[1] = (temp_val * 0.5) - 40; // MEB Bits 36-44
+      break;
+  }
+}
+}
+
 
 void BMSModule::decodecan(int Id, twai_message_t &msg) {
 
-  switch (Id) {
-  case 0:
+  static const int idToIndex[] = {0, 4, 8, 12};
+  int index = idToIndex[Id];
 
-    cellVolt[0] =
-        (uint16_t(msg.data[1] >> 4) + uint16_t(msg.data[2] << 4) + 1000) *
-        0.001;
-    cellVolt[2] =
-        (uint16_t(msg.data[5] << 4) + uint16_t(msg.data[4] >> 4) + 1000) *
-        0.001;
-    cellVolt[1] =
-        (msg.data[3] + uint16_t((msg.data[4] & 0x0F) << 8) + 1000) * 0.001;
-    cellVolt[3] =
-        (msg.data[6] + uint16_t((msg.data[7] & 0x0F) << 8) + 1000) * 0.001;
+  cellVolt[index++] = (uint16_t(msg.data[1] >> 4) + uint16_t(msg.data[2] << 4) + 1000) * 0.001;
+  cellVolt[index++] = (msg.data[3] + uint16_t((msg.data[4] & 0x0F) << 8) + 1000) * 0.001;
+  
+  if (Id != 3) {
+    cellVolt[index++] = (uint16_t(msg.data[5] << 4) + uint16_t(msg.data[4] >> 4) + 1000) * 0.001;
+    cellVolt[index] = (msg.data[6] + uint16_t((msg.data[7] & 0x0F) << 8) + 1000) * 0.001;
+ }
 
-    break;
-  case 1:
-
-    cellVolt[4] =
-        (uint16_t(msg.data[1] >> 4) + uint16_t(msg.data[2] << 4) + 1000) *
-        0.001;
-    cellVolt[6] =
-        (uint16_t(msg.data[5] << 4) + uint16_t(msg.data[4] >> 4) + 1000) *
-        0.001;
-    cellVolt[5] =
-        (msg.data[3] + uint16_t((msg.data[4] & 0x0F) << 8) + 1000) * 0.001;
-    cellVolt[7] =
-        (msg.data[6] + uint16_t((msg.data[7] & 0x0F) << 8) + 1000) * 0.001;
-
-    break;
-
-  case 2:
-
-    cellVolt[8] =
-        (uint16_t(msg.data[1] >> 4) + uint16_t(msg.data[2] << 4) + 1000) *
-        0.001;
-    cellVolt[10] =
-        (uint16_t(msg.data[5] << 4) + uint16_t(msg.data[4] >> 4) + 1000) *
-        0.001;
-    cellVolt[9] =
-        (msg.data[3] + uint16_t((msg.data[4] & 0x0F) << 8) + 1000) * 0.001;
-    cellVolt[11] =
-        (msg.data[6] + uint16_t((msg.data[7] & 0x0F) << 8) + 1000) * 0.001;
-
-    break;
-
-  case 3:
-
-    cellVolt[12] =
-        (uint16_t(msg.data[1] >> 4) + uint16_t(msg.data[2] << 4) + 1000) *
-        0.001;
-    cellVolt[13] =
-        (uint16_t(msg.data[5] << 4) + uint16_t(msg.data[4] >> 4) + 1000) *
-        0.001;
-
-    break;
-
-  default:
-    break;
-  }
+  
   if (getLowTemp() < lowestTemperature)
     lowestTemperature = getLowTemp();
   if (getHighTemp() > highestTemperature)
@@ -156,6 +110,7 @@ void BMSModule::decodecan(int Id, twai_message_t &msg) {
       highestCellVolt[i] = cellVolt[i];
   }
 }
+
 
 /*
   Reading the status of the board to identify any flags, will be more useful

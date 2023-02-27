@@ -18,14 +18,10 @@
 
 
 const char *ssid = "HXT";
-const char *password = "4xx";
+const char *password = "4uh7-wlxe-qh75";
 
 String lastcans[10];
 int lastcancounter = 0;
-
-
-
-
 
 
 uint32_t alerts_triggered;
@@ -696,56 +692,53 @@ void HIGHcan(int addr) // communication HIGHVOLTAGE   CAN
 
 void canread() {
 
+  
   can_processed++;
+  const uint32_t CAN_ID_VW_BMS_MODULE = 0x300;
+  const uint32_t CAN_ID_TEMPERATURE_MEASUREMENT = 0x1A555400;
+  const uint32_t CAN_ID_TEMPERATURE_MEASUREMENT_END = 0x1A555440;
+  const uint32_t CAN_ID_TEMPERATURE_MEASUREMENT_MEB = 0x1A5555F0;
+  const uint32_t CAN_ID_STATUS_MEB = 0x16A95470;
+
 
   if (twai_receive(&inmsg, pdMS_TO_TICKS(10000)) == ESP_OK) {
-
-       if ((inmsg.identifier & 0x16A95470) == 0x16A95470) {
-     //if ((inmsg.identifier & 0x1FFFFFF0) == 0x1A5555F0){
-
-     
-
-      lastcancounter++;
-      if (lastcancounter > 9)
-        lastcancounter = 0;
-
-      lastcans[lastcancounter] = String(inmsg.identifier, HEX) + " ";
-      if (inmsg.extd)
-        lastcans[lastcancounter] += " X ";
-      else
-        lastcans[lastcancounter] += " S ";
-      lastcans[lastcancounter] += String(inmsg.data_length_code);
-      lastcans[lastcancounter] += ": ";
-      for (int i = 0; i < inmsg.data_length_code; i++) {
-
-        lastcans[lastcancounter] += " " + String(inmsg.data[i], HEX);
-      }
-
-    }
-
-    if (inmsg.identifier < 0x300)
-      bms.decodecan(inmsg,
-                    0); // do VW BMS if ids are ones identified to be modules
-
-    // else if ((inmsg.identifier & 0x1FFFFFFF) < 0x1A5555FF &&
-    // (inmsg.identifier & 0x1FFFFFFF) > 0x1A5555EF)   // Determine if ID is
-    // Temperature CAN-ID FOR MEB
-
-    if ((inmsg.identifier & 0x1FFFFFFF) < 0x1A555440 && (inmsg.identifier & 0x1FFFFFFF) > 0x1A555400)   // Determine if ID is Temperature CAN-ID
-    {
-   
-      bms.decodetemp(inmsg, 0, 1);
+  
     
-    }
+  if (inmsg.identifier < CAN_ID_VW_BMS_MODULE) {bms.decodecan(inmsg, 0);} 
+  else
 
-    else if ((inmsg.identifier & 0x1FFFFFF0) == 0x1A5555F0)
+  switch (inmsg.identifier & 0x1FFFFFF0) {
 
-    {
-      bms.decodetemp(inmsg, 0, 2);
-    }
+    case CAN_ID_STATUS_MEB:  // store last MEB status for displaying bleed status
+         lastcancounter = (lastcancounter + 1) % 10;
+         lastcans[lastcancounter] = String(inmsg.identifier, HEX) + " ";
+         if (inmsg.extd)  lastcans[lastcancounter] += " X ";
+         else             lastcans[lastcancounter] += " S ";
+         lastcans[lastcancounter] += String(inmsg.data_length_code);
+         lastcans[lastcancounter] += ": ";
+         for (int i = 0; i < inmsg.data_length_code; i++)   lastcans[lastcancounter] += " " + String(inmsg.data[i], HEX);
+         break;  
 
-    else if  ((inmsg.identifier & 0x1FFFFFF0) == 0x16A95470) {
-      //bms.decodetemp(inmsg, 0, 3);
-    }
-    }
+
+    case CAN_ID_TEMPERATURE_MEASUREMENT ... CAN_ID_TEMPERATURE_MEASUREMENT_END:
+         bms.decodetemp(inmsg, 0, 1);
+         break;
+
+    case CAN_ID_TEMPERATURE_MEASUREMENT_MEB:
+         bms.decodetemp(inmsg, 0, 2);
+         break;
+
+     default: break;
+         
   }
+
+  
+    
+}
+
+
+ 
+
+
+
+    }
