@@ -1,23 +1,22 @@
 
 #include "BMSModuleManager.h"
-
+#include "config.h"
 #include "driver/gpio.h"
 #include "driver/twai.h"
 
 #define MAX_MODULE_ADDR 0x3E
 
-extern String lastcans[10];
+// extern String lastcans[10];
 extern EEPROMSettings settings;
 extern uint32_t alerts_triggered;
 extern uint32_t can_processed;
 extern twai_status_info_t twaistatus;
 extern int SOC, SOC_physical;
-
 extern int nmc712[100];
-
 extern int nmc712_nominal_voltage;
+extern struct canLog canBuffer[100];
 
- uint16_t balance = 0; // bit 0 - 11 are to activate cell balancing 1-12
+uint16_t balance = 0; // bit 0 - 11 are to activate cell balancing 1-12
 
 
 twai_message_t outmsg;
@@ -25,12 +24,10 @@ twai_message_t outmsg;
 BMSModuleManager::BMSModuleManager() {
   for (int i = 1; i <= MAX_MODULE_ADDR; i++) {
     modules[i].setExists(false);
-    modules[i].setAddress(i);
+    
   }
-  lowestPackVolt = 1000.0f;
-  highestPackVolt = 0.0f;
-  lowestPackTemp = 200.0f;
-  highestPackTemp = -100.0f;
+
+
   isFaulted = false;
   balcnt = 0;
 }
@@ -48,7 +45,7 @@ bool BMSModuleManager::checkcomms() {
       }
     }
     modules[y].setReset(false);
-    modules[y].setAddress(y);
+    ;
   }
   if (g == 0) {
     return false;
@@ -258,7 +255,6 @@ void BMSModuleManager::clearmodules() {
     if (modules[y].isExisting()) {
       modules[y].clearmodule();
       modules[y].setExists(false);
-      modules[y].setAddress(y);
     }
   }
 }
@@ -438,18 +434,11 @@ void BMSModuleManager::getAllVoltTemp() {
       Serial.printf("Temp1: %f       Temp2: %f", modules[x].getTemperature(0),
                     modules[x].getTemperature(1));
       packVolt += modules[x].getModuleVoltage();
-      if (modules[x].getLowTemp() < lowestPackTemp)
-        lowestPackTemp = modules[x].getLowTemp();
-      if (modules[x].getHighTemp() > highestPackTemp)
-        highestPackTemp = modules[x].getHighTemp();
     }
   }
 
   packVolt = packVolt / Pstring;
-  if (packVolt > highestPackVolt)
-    highestPackVolt = packVolt;
-  if (packVolt < lowestPackVolt)
-    lowestPackVolt = packVolt;
+
 }
 
 float BMSModuleManager::getLowCellVolt() {
@@ -478,23 +467,9 @@ float BMSModuleManager::getPackVoltage() { return packVolt; }
 
 int BMSModuleManager::getNumModules() { return numFoundModules; }
 
-float BMSModuleManager::getLowVoltage() { return lowestPackVolt; }
 
-float BMSModuleManager::getHighVoltage() { return highestPackVolt; }
-
-void BMSModuleManager::setBatteryID(int id) { batteryID = id; }
 
 void BMSModuleManager::setPstrings(int Pstrings) { Pstring = Pstrings; }
-
-void BMSModuleManager::setSensors(int sensor, float Ignore, float VoltDelta) {
-  for (int x = 0; x <= MAX_MODULE_ADDR; x++) {
-    if (modules[x].isExisting()) {
-      modules[x].settempsensor(sensor);
-      modules[x].setIgnoreCell(Ignore);
-      modules[x].setDelta(VoltDelta);
-    }
-  }
-}
 
 float BMSModuleManager::getAvgTemperature() {
   float avg = 0.0f;
@@ -806,9 +781,26 @@ String BMSModuleManager::htmlPackDetails(int digits) {
 
   ptr += "<p><br>\n";
 
+  /*
+
   for (int i = 0; i < 10; i++) {
     ptr += lastcans[i] + "<br>";
   }
+
+ */
+
+
+ for (int i = 0; i < 100; i++) {
+
+  if (canBuffer[i].identifier) {
+  ptr += String(canBuffer[i].identifier,HEX)+ " : ";
+  for (int a = 0; a < 8; a++)   ptr += " " + ((String(canBuffer[i].data[a],HEX).length() < 2 ) ? ( "0" + String(canBuffer[i].data[a],HEX)) : String(canBuffer[i].data[a],HEX));
+  ptr += "<br>";} else break;
+         
+}
+  
+  
+
 
   ptr += "<br></body>\n";
 
@@ -823,7 +815,7 @@ void BMSModuleManager::printPackDetails(int digits) {
 
   Serial.printf("Modules: %i Cells: %i Strings: %i  Voltage: %fV   Avg Cell "
                 "Voltage: %fV  Low Cell Voltage: %fV   High Cell Voltage: %fV "
-                "Delta Voltage: %zmV   Avg Temp: %fC ",
+                "Delta Voltage: %lfmV   Avg Temp: %fC ",
                 numFoundModules, seriescells(), Pstring, getPackVoltage(),
                 getAvgCellVolt(), LowCellVolt, HighCellVolt,
                 (HighCellVolt - LowCellVolt) * 1000, getAvgTemperature());
@@ -837,7 +829,6 @@ void BMSModuleManager::printPackDetails(int digits) {
 
       Serial.print("Module #");
       Serial.printf("%2d", y);
-
       Serial.print(" ");
       Serial.print(modules[y].getModuleVoltage(), digits);
       Serial.print("V");

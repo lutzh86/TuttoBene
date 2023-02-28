@@ -18,12 +18,6 @@ public:
   float getAverageV();
   float getLowTemp();
   float getHighTemp();
-  float getHighestModuleVolt();
-  float getLowestModuleVolt();
-  float getHighestCellVolt(int cell);
-  float getLowestCellVolt(int cell);
-  float getHighestTemp();
-  float getLowestTemp();
   float getAvgTemp();
   float getModuleVoltage();
   float getTemperature(int temp);
@@ -31,8 +25,6 @@ public:
   uint8_t getAlerts();
   uint8_t getCOVCells();
   uint8_t getCUVCells();
-  void setAddress(int newAddr);
-  int getAddress();
   int getType();
   int getBalStat();
   bool isExisting();
@@ -42,21 +34,14 @@ public:
   void setReset(bool ex);
   void setExists(bool ex);
   void settempsensor(int tempsensor);
-  void setIgnoreCell(float Ignore);
   void setDelta(float ex);
 
 private:
   float cellVolt[14]; // calculated as 16 bit value * 6.250 / 16383 = volts
-
-  float lowestCellVolt[14];
-  float highestCellVolt[14];
   float moduleVolt;      // calculated as 16 bit value * 33.333 / 16383 = volts
   float temperatures[3]; // Don't know the proper scaling at this point
   float lowestTemperature;
   float highestTemperature;
-  float lowestModuleVolt;
-  float highestModuleVolt;
-  float IgnoreCell;
   float VoltDelta;
   bool exists;
   bool reset;
@@ -66,7 +51,6 @@ private:
   int CUVFaults;
   int sensor;
   uint16_t balance;
-  uint8_t moduleAddress; // 1 to 0x3E
   int scells;
   uint32_t balstat;
   uint32_t lasterror;

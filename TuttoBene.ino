@@ -1,6 +1,8 @@
 
 #include "BMSModuleManager.h"
 #include "config.h"
+
+
 #include <Arduino.h>
 
 #include "driver/gpio.h"
@@ -13,20 +15,28 @@
 #include <WiFiUdp.h>
 
 #define MAX_MODULE_ADDR 0x3E
-#define EEPROM_VERSION 0x12
-#define EEPROM_PAGE 0
+
+
+
+
+struct canLog canBuffer[100];
+
+
+int cmpfunc (const void * a, const void * b) {
+   return ( *(int*)b - *(int*)a );
+}
 
 
 const char *ssid = "HXT";
-const char *password = "4uh7-wlxe-qh75";
+const char *password = "xxx";
 
-String lastcans[10];
-int lastcancounter = 0;
+// String lastcans[10];
+// int lastcancounter = 0;
 
 
 uint32_t alerts_triggered;
-
 uint32_t can_processed;
+
 twai_status_info_t twaistatus;
 twai_message_t msg, inmsg;
 
@@ -56,8 +66,6 @@ byte stringToByte(char *src) { return byte(atoi(src)); }
 
 void loadSettings() {
 
-  settings.canSpeed = 500000;
-  settings.batteryID =    0x01; // in the future should be 0xFF to force it to ask for an address
   settings.OverVSetpoint = 4.15f;
   settings.UnderVSetpoint = 3.4f;
   settings.ChargeVsetpoint = 4.0f;
@@ -68,11 +76,13 @@ void loadSettings() {
   settings.DisTSetpoint = 40.0f;
   settings.balanceVoltage = 3.7f;
   settings.balanceHyst = 0.003f;
-  settings.capacity = 234;    // battery size in Ah
+  settings.capacity = 234;    // battery size per Module in Ah, 8s = 234ah, 12s 156ah
   settings.parallel_strings = 2; // strings in parallel used to divide voltage of pack
   settings.series_cells = 16;  // Cells in series
-  settings.nominal_cell_voltage = 3659; 
+  settings.nominal_cell_voltage = 3659;  // for NMC712
   settings.internal_resistance = 3; //in mOhm
+  settings.DischargeTaper = 300;
+  
   
   int curve[100] = {3360,3395,3433,3455,3471,3483,3491,3498,3505,3511,3518,3525,3532,3538,3544,3551,3557,3562,3568,3574,3579,3584,3589,3594,3599,3603,3608,3613,3617,3623,3628,
                    3634,3639,3644,3648,3652,3655,3658,3661,3664,3667,3670,3673,3676,3679,3683,3686,3689,3693,3697,3700,3704,3708,3713,3717,3722,3727,3732,3738,3745,3751,3759,3766,
@@ -106,8 +116,7 @@ void setup() {
   server.begin();
 
   // Initialize configuration structures using macro initializers
-  twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(
-      GPIO_NUM_40, GPIO_NUM_39, TWAI_MODE_NO_ACK); // nNROMAL
+  twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(GPIO_NUM_40, GPIO_NUM_39, TWAI_MODE_NO_ACK); // nNROMAL
   twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();
   twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
 
@@ -170,15 +179,9 @@ void setup() {
 
   Serial.begin(115200);
   Serial.println("Starting up!");
-
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
-
   loadSettings();
-
   lastUpdate = 0;
   bms.setPstrings(settings.parallel_strings);
-  bms.setSensors(settings.IgnoreTemp, settings.IgnoreVolt, settings.DeltaVolt);
   bms.setBalanceHyst(settings.balanceHyst);
   looptime = millis();
 }
@@ -545,165 +548,46 @@ void VEcan() // communication with Victron system over CAN
 
 
 
-
-
-
-void HIGHcan(int addr) // communication HIGHVOLTAGE   CAN
-{
-  
-    msg.identifier = 0x4210 + addr;
-    msg.data_length_code = 8;
-    msg.data[0] = lowByte(uint16_t(bms.getPackVoltage() * 100));
-    msg.data[1] = highByte(uint16_t(bms.getPackVoltage() * 100));
-
-    msg.data[2] = lowByte(-3000 + long(currentact / 100));
-    msg.data[3] = highByte(-3000 + long(currentact / 100));
-
-    msg.data[4] = lowByte(-100 + int16_t(bms.getAvgTemperature() * 10));
-    msg.data[5] = highByte(-100 + int16_t(bms.getAvgTemperature() * 10));
-    msg.data[6] = lowByte(SOC);
-    msg.data[7] = lowByte(SOH);
-   
-    if (!twai_transmit(&msg, pdMS_TO_TICKS(1000)) == ESP_OK) {
-      Serial.println("CAN SEND ERROR\n");
-    }
-
-    msg.identifier = 0x355;
-    msg.data_length_code = 8;
-    msg.data[0] = lowByte(SOC);
-    msg.data[1] = highByte(SOC);
-    msg.data[2] = lowByte(SOH);
-    msg.data[3] = highByte(SOH);
-    msg.data[4] = lowByte(SOC * 10);
-    msg.data[5] = highByte(SOC * 10);
-    msg.data[6] = 0;
-    msg.data[7] = 0;
-    if (!twai_transmit(&msg, pdMS_TO_TICKS(1000)) == ESP_OK) {
-      Serial.println("CAN SEND ERROR\n");
-    }
-
-    msg.identifier = 0x356;
-    msg.data_length_code = 8;
-    msg.data[0] = lowByte(uint16_t(bms.getPackVoltage() * 100));
-    msg.data[1] = highByte(uint16_t(bms.getPackVoltage() * 100));
-    msg.data[2] = lowByte(long(currentact / 100));
-    msg.data[3] = highByte(long(currentact / 100));
-    msg.data[4] = lowByte(int16_t(bms.getAvgTemperature() * 10));
-    msg.data[5] = highByte(int16_t(bms.getAvgTemperature() * 10));
-    msg.data[6] = 0;
-    msg.data[7] = 0;
-    if (!twai_transmit(&msg, pdMS_TO_TICKS(1000)) == ESP_OK) {
-      Serial.println("CAN SEND ERROR\n");
-    }
-
-    delay(2);
-    msg.identifier = 0x35A;
-    msg.data_length_code = 8;
-    msg.data[0] = alarm_ve[0];   // High temp  Low Voltage | High Voltage
-    msg.data[1] = alarm_ve[1];   // High Discharge Current | Low Temperature
-    msg.data[2] = alarm_ve[2];   // Internal Failure | High Charge current
-    msg.data[3] = alarm_ve[3];   // Cell Imbalance
-    msg.data[4] = warning_ve[0]; // High temp  Low Voltage | High Voltage
-    msg.data[5] = warning_ve[1]; // High Discharge Current | Low Temperature
-    msg.data[6] = warning_ve[2]; // Internal Failure | High Charge current
-    msg.data[7] = warning_ve[3]; // Cell Imbalance
-    if (!twai_transmit(&msg, pdMS_TO_TICKS(1000)) == ESP_OK) {
-      Serial.println("CAN SEND ERROR\n");
-    }
-
-    msg.identifier = 0x35E;
-    msg.data_length_code = 8;
-    msg.data[0] = 'S';
-    msg.data[1] = 'I';
-    msg.data[2] = 'M';
-    msg.data[3] = 'P';
-    msg.data[4] = '3';
-    msg.data[5] = '2';
-    msg.data[6] = 'B';
-    msg.data[7] = 'M';
-    if (!twai_transmit(&msg, pdMS_TO_TICKS(1000)) == ESP_OK) {
-      Serial.println("CAN SEND ERROR\n");
-    }
-
-    delay(2);
-    msg.identifier = 0x370;
-    msg.data_length_code = 8;
-    msg.data[0] = 'S';
-    msg.data[1] = 'H';
-    msg.data[2] = 'P';
-    msg.data[3] = 'I';
-    msg.data[4] = 'G';
-    msg.data[5] = 'M';
-    msg.data[6] = 'B';
-    msg.data[7] = 'H';
-    if (!twai_transmit(&msg, pdMS_TO_TICKS(1000)) == ESP_OK) {
-      Serial.println("CAN SEND ERROR\n");
-    }
-
-    delay(2);
-    msg.identifier = 0x373;
-    msg.data_length_code = 8;
-    msg.data[0] = lowByte(uint16_t(bms.getLowCellVolt() * 1000));
-    msg.data[1] = highByte(uint16_t(bms.getLowCellVolt() * 1000));
-    msg.data[2] = lowByte(uint16_t(bms.getHighCellVolt() * 1000));
-    msg.data[3] = highByte(uint16_t(bms.getHighCellVolt() * 1000));
-    msg.data[4] = lowByte(uint16_t(bms.getLowTemperature() + 273.15));
-    msg.data[5] = highByte(uint16_t(bms.getLowTemperature() + 273.15));
-    msg.data[6] = lowByte(uint16_t(bms.getHighTemperature() + 273.15));
-    msg.data[7] = highByte(uint16_t(bms.getHighTemperature() + 273.15));
-    if (!twai_transmit(&msg, pdMS_TO_TICKS(1000)) == ESP_OK) {
-      Serial.println("CAN SEND ERROR\n");
-    }
-
-    delay(2);
-    msg.identifier = 0x379; // Installed capacity
-    msg.data_length_code = 2;
-    msg.data[0] = lowByte(uint16_t(settings.parallel_strings * settings.capacity));
-    msg.data[1] = highByte(uint16_t(settings.parallel_strings * settings.capacity));
-    /*
-        delay(2);
-      msg.identifier  = 0x378; //Installed capacity
-      msg.data_length_code = 2;
-      //energy in 100wh/unit
-      msg.data[0] =
-      msg.data[1] =
-      msg.data[2] =
-      msg.data[3] =
-      //energy out 100wh/unit
-      msg.data[4] =
-      msg.data[5] =
-      msg.data[6] =
-      msg.data[7] =
-    */
-    delay(2);
-    msg.identifier = 0x372;
-    msg.data_length_code = 8;
-    msg.data[0] = lowByte(bms.getNumModules());
-    msg.data[1] = highByte(bms.getNumModules());
-    msg.data[2] = 0x00;
-    msg.data[3] = 0x00;
-    msg.data[4] = 0x00;
-    msg.data[5] = 0x00;
-    msg.data[6] = 0x00;
-    msg.data[7] = 0x00;
-    if (!twai_transmit(&msg, pdMS_TO_TICKS(1000)) == ESP_OK) {
-      Serial.println("CAN SEND ERROR\n");
-    }
-  }
-
-
 void canread() {
-
+  int l;
   
   can_processed++;
   const uint32_t CAN_ID_VW_BMS_MODULE = 0x300;
   const uint32_t CAN_ID_TEMPERATURE_MEASUREMENT = 0x1A555400;
-  const uint32_t CAN_ID_TEMPERATURE_MEASUREMENT_END = 0x1A555440;
+  const uint32_t CAN_ID_TEMPERATURE_MEASUREMENT_END = 0x1A5554F0;
   const uint32_t CAN_ID_TEMPERATURE_MEASUREMENT_MEB = 0x1A5555F0;
   const uint32_t CAN_ID_STATUS_MEB = 0x16A95470;
 
 
   if (twai_receive(&inmsg, pdMS_TO_TICKS(10000)) == ESP_OK) {
+
+
+
+  for (int i = 0; i < 100; i++) {
+    
+    if (canBuffer[i].identifier == inmsg.identifier) {
+
+      memcpy(canBuffer[i].data, inmsg.data, inmsg.data_length_code);
+      canBuffer[i].count++;
+      break;
+      
+      }
+     else if (canBuffer[i].identifier == 0) {
+      
+      canBuffer[i].identifier = inmsg.identifier;
+      memcpy(canBuffer[i].data, inmsg.data, inmsg.data_length_code);
+      canBuffer[i].count = 1;
+
+
+      // sort the other_events, so the hour events are in the correct spot
+      
+      // qsort - last parameter is a function pointer to the sort function
+      qsort(canBuffer, 100, sizeof(canBuffer[0]), cmpfunc);
+      break;
+      
+      }
+    
+    }
   
     
   if (inmsg.identifier < CAN_ID_VW_BMS_MODULE) {bms.decodecan(inmsg, 0);} 
@@ -711,16 +595,11 @@ void canread() {
 
   switch (inmsg.identifier & 0x1FFFFFF0) {
 
-    case CAN_ID_STATUS_MEB:  // store last MEB status for displaying bleed status
+    /* case CAN_ID_STATUS_MEB:  // store last MEB status for displaying bleed status
          lastcancounter = (lastcancounter + 1) % 10;
-         lastcans[lastcancounter] = String(inmsg.identifier, HEX) + " ";
-         if (inmsg.extd)  lastcans[lastcancounter] += " X ";
-         else             lastcans[lastcancounter] += " S ";
-         lastcans[lastcancounter] += String(inmsg.data_length_code);
-         lastcans[lastcancounter] += ": ";
+         lastcans[lastcancounter] = String(inmsg.identifier, HEX) + " " + (inmsg.extd ?  " X " : " S ") + String(inmsg.data_length_code)  + ": ";
          for (int i = 0; i < inmsg.data_length_code; i++)   lastcans[lastcancounter] += " " + String(inmsg.data[i], HEX);
-         break;  
-
+         break;  */
 
     case CAN_ID_TEMPERATURE_MEASUREMENT ... CAN_ID_TEMPERATURE_MEASUREMENT_END:
          bms.decodetemp(inmsg, 0, 1);

@@ -1,32 +1,29 @@
-
-
 #include "BMSModule.h"
-
 #include "driver/gpio.h"
 #include "driver/twai.h"
 
 #define MAX_MODULE_ADDR 0x3E
+#define IGNORE_CELL_LOW 0.5
+#define IGNORE_CELL_HIGH 5.0
+
+
+
 
 BMSModule::BMSModule() {
   for (int i = 0; i < 14; i++) {
     cellVolt[i] = 0.0f;
-    lowestCellVolt[i] = 5.0f;
-    highestCellVolt[i] = 0.0f;
+
   }
   balance = 0;
   moduleVolt = 0.0f;
   temperatures[0] = 0.0f;
   temperatures[1] = 0.0f;
   temperatures[2] = 0.0f;
-  lowestTemperature = 200.0f;
-  highestTemperature = -100.0f;
-  lowestModuleVolt = 200.0f;
-  highestModuleVolt = 0.0f;
+
   balstat = 0;
   exists = false;
   reset = false;
-  moduleAddress = 0;
-  timeout = 30000; // milliseconds before comms timeout;
+  
   type = 1;
 }
 
@@ -41,7 +38,6 @@ void BMSModule::clearmodule() {
   balstat = 0;
   exists = false;
   reset = false;
-  moduleAddress = 0;
 }
 
 void BMSModule::decodetemp(twai_message_t &msg, int y) {
@@ -98,34 +94,15 @@ void BMSModule::decodecan(int Id, twai_message_t &msg) {
  }
 
   
-  if (getLowTemp() < lowestTemperature)
-    lowestTemperature = getLowTemp();
-  if (getHighTemp() > highestTemperature)
-    highestTemperature = getHighTemp();
 
-  for (int i = 0; i < 14; i++) {
-    if (lowestCellVolt[i] > cellVolt[i] && cellVolt[i] >= IgnoreCell)
-      lowestCellVolt[i] = cellVolt[i];
-    if (highestCellVolt[i] < cellVolt[i] && cellVolt[i] > 5.0)
-      highestCellVolt[i] = cellVolt[i];
-  }
+ 
 }
 
 
-/*
-  Reading the status of the board to identify any flags, will be more useful
-  when implementing a sleep cycle
-*/
 
-uint8_t BMSModule::getFaults() { return faults; }
-
-uint8_t BMSModule::getAlerts() { return alerts; }
 
 uint16_t BMSModule::getBalance() { return balance; }
 
-uint8_t BMSModule::getCOVCells() { return COVFaults; }
-
-uint8_t BMSModule::getCUVCells() { return CUVFaults; }
 
 float BMSModule::getCellVoltage(int cell) {
   if (cell < 0 || cell > 13)
@@ -136,7 +113,7 @@ float BMSModule::getCellVoltage(int cell) {
 float BMSModule::getLowCellV() {
   float lowVal = 10.0f;
   for (int i = 0; i < 14; i++)
-    if (cellVolt[i] < lowVal && cellVolt[i] > IgnoreCell)
+    if (cellVolt[i] < lowVal && cellVolt[i] > IGNORE_CELL_LOW)
       lowVal = cellVolt[i];
   return lowVal;
 }
@@ -144,7 +121,7 @@ float BMSModule::getLowCellV() {
 float BMSModule::getHighCellV() {
   float hiVal = 0.0f;
   for (int i = 0; i < 14; i++)
-    if (cellVolt[i] > IgnoreCell && cellVolt[i] < 5.0) {
+    if (cellVolt[i] > IGNORE_CELL_LOW && cellVolt[i] < IGNORE_CELL_HIGH) {
       if (cellVolt[i] > hiVal)
         hiVal = cellVolt[i];
     }
@@ -155,7 +132,7 @@ float BMSModule::getAverageV() {
   int x = 0;
   float avgVal = 0.0f;
   for (int i = 0; i < 14; i++) {
-    if (cellVolt[i] > IgnoreCell && cellVolt[i] < 5.0) {
+    if (cellVolt[i] > IGNORE_CELL_LOW && cellVolt[i] < IGNORE_CELL_HIGH) {
       x++;
       avgVal += cellVolt[i];
     }
@@ -173,25 +150,6 @@ float BMSModule::getAverageV() {
 
 int BMSModule::getscells() { return scells; }
 
-float BMSModule::getHighestModuleVolt() { return highestModuleVolt; }
-
-float BMSModule::getLowestModuleVolt() { return lowestModuleVolt; }
-
-float BMSModule::getHighestCellVolt(int cell) {
-  if (cell < 0 || cell > 13)
-    return 0.0f;
-  return highestCellVolt[cell];
-}
-
-float BMSModule::getLowestCellVolt(int cell) {
-  if (cell < 0 || cell > 13)
-    return 0.0f;
-  return lowestCellVolt[cell];
-}
-
-float BMSModule::getHighestTemp() { return highestTemperature; }
-
-float BMSModule::getLowestTemp() { return lowestTemperature; }
 
 float BMSModule::getLowTemp() {
   if (type == 1) {
@@ -288,7 +246,7 @@ float BMSModule::getAvgTemp() {
 float BMSModule::getModuleVoltage() {
   moduleVolt = 0;
   for (int i = 0; i < 14; i++) {
-    if (cellVolt[i] > IgnoreCell && cellVolt[i] < 5.0) {
+    if (cellVolt[i] > IGNORE_CELL_LOW && cellVolt[i] < IGNORE_CELL_HIGH) {
       moduleVolt = moduleVolt + cellVolt[i];
     }
   }
@@ -301,30 +259,9 @@ float BMSModule::getTemperature(int temp) {
   return temperatures[temp];
 }
 
-void BMSModule::setAddress(int newAddr) {
-  if (newAddr < 0 || newAddr > MAX_MODULE_ADDR)
-    return;
-  moduleAddress = newAddr;
-}
-
-int BMSModule::getAddress() { return moduleAddress; }
-
 int BMSModule::getType() { return type; }
-
-int BMSModule::getBalStat() { return balstat; }
-
 bool BMSModule::isExisting() { return exists; }
-
 bool BMSModule::isReset() { return reset; }
-
-void BMSModule::settempsensor(int tempsensor) { sensor = tempsensor; }
-
 void BMSModule::setExists(bool ex) { exists = ex; }
-
-void BMSModule::setDelta(float ex) { VoltDelta = ex; }
-
 void BMSModule::setReset(bool ex) { reset = ex; }
-
 void BMSModule::setBalance(uint16_t value) { balance = value; }
-
-void BMSModule::setIgnoreCell(float Ignore) { IgnoreCell = Ignore; }
